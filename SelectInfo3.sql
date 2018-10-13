@@ -88,8 +88,21 @@ USE SCT; --不要忘了这句，要不然可能查不到
 		AND SC.S#=Student.S#	
 	);
 --（9）	列出学过98030101号同学学过所有课程的同学的学号；
+	/*
+		内层查询：从SC表查询98030101号同学学过所有课程课程号
+		外层查询：从SC表查询学号学过98030101号同学学过所有课程课程号的同学
+	*/
+	SELECT DISTINCT SC1.S# FROM SC AS SC1 
+	WHERE EXISTS
+	(
+		SELECT SC2.C# FROM SC AS SC2 
+		WHERE S#='98030101'
+			  AND SC2.C#=SC1.C#
+	);
 --（10）	新建Table: SCt(S#, C#, Score), 将检索到的成绩不及格同学的记录新增到该表中；
-	USE SCT;
+	--删除之前可能存在的已经创建的表
+	DROP TABLE SCt;
+	--执行查询并且添加新表任务
 	SELECT S#,C#,Score
 	INTO SCt --直接将结果插入新表
 	FROM SC
@@ -97,4 +110,44 @@ USE SCT; --不要忘了这句，要不然可能查不到
 	--检索插入的新表
 	SELECT * FROM SCt;
 --（11）	从SCt表中删除有两门不及格课程的所有同学；
+	DELETE FROM SCt
+	--WHERE 是要删除条件，括号内内容应该为去掉重复的两门不及格课程的所有同学的学号
+	WHERE S# IN (SELECT DISTINCT SCt.S#
+					FROM SCt
+					WHERE Score <60
+					GROUP BY SCt.S#
+					HAVING COUNT(*) =2);
+	--检索删除后的新表
+	SELECT * FROM SCt;
 --（12）	将张三同学001号课的成绩置为其班级该门课的平均成绩。
+-- 这题我没看懂什么意思，但是我可以做到将所有班级，所有的课程的ID查询出来，并且把平均成绩也算出来添加到一个新表到SCa(Sclass, C#, AVG_Score)去，然后将张三同学的001号课的成绩选出来，并且做为他们班该门课的平均成绩。
+	
+	-- 删除之前可能存在的表
+	DROP TABLE SCa;
+	--首先创建这个表出来
+	SELECT Student.Sclass AS [Sclass],
+		   Course.C# AS [C#]
+	INTO SCa
+	FROM Student,Course;
+	--在这个表中添加AVG_Score列
+	ALTER TABLE SCa
+	ADD AVG_Score float(1);
+	--检索新建结果
+	SELECT * FROM SCa;
+	--计算每个班每门课的平均值插入结果到SCa表
+	INSERT INTO SCa 
+	SELECT Student.Sclass AS [Sclass],SC.C# AS [C#],AVG(SC.Score) AS [AVG_Score]
+	FROM Student,SC
+	WHERE Student.S#=SC.S#
+	GROUP BY Student.Sclass,SC.C#
+	--检索新建结果
+	SELECT * FROM SCa;
+	--将张三同学001号课的成绩置为其班级该门课的平均成绩
+	INSERT INTO SCa 
+	SELECT Student.Sclass AS [Sclass],SC.C# AS [C#],SC.Score AS [Score]
+	FROM SC,Student
+	WHERE Student.S#=SC.S#
+		  AND Student.Sname='张三'
+		  AND SC.C#='001'
+	--检索新建结果
+	SELECT * FROM SCa;
